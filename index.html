@@ -1,115 +1,153 @@
-import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
-import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/GLTFLoader.js';
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>北捷袋形軌探險</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: black; font-family: "Microsoft JhengHei", sans-serif; }
+        canvas { display: block; }
+        /* 讓選項按鈕漂亮一點 */
+        button {
+            background: rgba(40, 40, 40, 0.8);
+            color: white;
+            border: 1px solid #ff4444;
+            padding: 12px 24px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: 0.3s;
+        }
+        button:hover { background: #ff4444; color: black; }
+    </style>
+</head>
+<body>
 
-// --- A. 基本設定 ---
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+<script type="module">
+    import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
+    import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/GLTFLoader.js';
 
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+    // --- A. 基本設定 ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-// --- B. 資源路徑 (建議全放在 GitHub 同一資料夾下) ---
-const BASE_URL = 'https://raw.githubusercontent.com/gavin84894989/X/main/';
-const MODEL_PATH = BASE_URL + 'scene.glb';
-const DOLL_IMAGE_PATH = BASE_URL + 'doll.png'; // 請準備這張圖
-const SOUND_PATH = BASE_URL + 'cry.mp3';    // 請準備這個檔
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
 
-// --- C. 手電筒 ---
-const flashlight = new THREE.SpotLight(0xffffff, 20); 
-flashlight.angle = Math.PI / 8;
-flashlight.penumbra = 0.5;
-flashlight.distance = 25;
-scene.add(flashlight);
-scene.add(flashlight.target);
+    // --- B. 資源路徑 (直接抓取你 GitHub 裡上傳的檔案) ---
+    const MODEL_PATH = './scene.glb';
+    const DOLL_IMAGE_PATH = './doll.png';
+    const SOUND_PATH = './cry.mp3';
 
-// --- D. 載入車廂 ---
-const loader = new GLTFLoader();
-loader.load(MODEL_PATH, (gltf) => {
-    scene.add(gltf.scene);
-    gltf.scene.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
-});
+    // --- C. 手電筒 ---
+    const flashlight = new THREE.SpotLight(0xffffff, 20); 
+    flashlight.angle = Math.PI / 8;
+    flashlight.penumbra = 0.5;
+    flashlight.distance = 25;
+    scene.add(flashlight);
+    scene.add(flashlight.target);
 
-// --- E. 平面娃娃 (Sprite) ---
-// Sprite 是一種永遠會面對鏡頭的平面圖，適合做驚悚遊戲的鬼魂
-const textureLoader = new THREE.TextureLoader();
-const dollMap = textureLoader.load(DOLL_IMAGE_PATH);
-const dollMaterial = new THREE.SpriteMaterial({ map: dollMap, transparent: true });
-const doll = new THREE.Sprite(dollMaterial);
+    // --- D. 載入車廂 ---
+    const loader = new GLTFLoader();
+    loader.load(MODEL_PATH, (gltf) => {
+        scene.add(gltf.scene);
+        gltf.scene.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
+    });
 
-doll.scale.set(0.5, 0.8, 1); // 調整娃娃的大小比例
-doll.position.set(0, -0.4, -5); 
-doll.visible = false; 
-scene.add(doll);
+    // --- E. 平面娃娃 (Sprite) ---
+    const textureLoader = new THREE.TextureLoader();
+    const dollMap = textureLoader.load(DOLL_IMAGE_PATH);
+    const dollMaterial = new THREE.SpriteMaterial({ map: dollMap, transparent: true });
+    const doll = new THREE.Sprite(dollMaterial);
+    doll.scale.set(0.6, 0.6, 1); 
+    doll.position.set(0, -0.6, -6); // 放在稍微深一點的地方
+    doll.visible = false; 
+    scene.add(doll);
 
-// --- F. 遊戲邏輯 ---
-let shineCount = 0;
-let isLookingAtDoll = false;
-let hasTriggered = false;
-let gameEnded = false;
-const crySound = new Audio(SOUND_PATH);
-crySound.loop = true;
+    // --- F. 遊戲邏輯 ---
+    let shineCount = 0;
+    let isLookingAtDoll = false;
+    let hasTriggered = false;
+    let gameEnded = false;
+    const crySound = new Audio(SOUND_PATH);
+    crySound.loop = true;
 
-window.addEventListener('mousemove', (e) => {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    flashlight.target.position.set(mouse.x * 10, mouse.y * 10, -10);
-    flashlight.position.copy(camera.position);
-});
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        flashlight.target.position.set(mouse.x * 10, mouse.y * 10, -10);
+        flashlight.position.copy(camera.position);
+    });
 
-window.addEventListener('click', () => {
-    if (doll.visible && !gameEnded) {
-        raycaster.setFromCamera(mouse, camera);
-        if (raycaster.intersectObject(doll).length > 0) showOptions();
+    // 點擊事件
+    window.addEventListener('click', () => {
+        if (doll.visible && !gameEnded) {
+            raycaster.setFromCamera(mouse, camera);
+            if (raycaster.intersectObject(doll).length > 0) showOptions();
+        }
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if (!gameEnded) {
+            raycaster.setFromCamera(mouse, camera);
+            if (raycaster.intersectObject(doll).length > 0) {
+                if (!isLookingAtDoll) {
+                    isLookingAtDoll = true;
+                    shineCount++;
+                    if (shineCount >= 3) triggerEvent();
+                }
+            } else { isLookingAtDoll = false; }
+            
+            flashlight.intensity = 8 + Math.random() * 12; // 讓燈光閃爍
+        }
+        renderer.render(scene, camera);
     }
-});
+    animate();
 
-function animate() {
-    requestAnimationFrame(animate);
-    if (!gameEnded) {
-        // 偵測是否照到娃娃
-        raycaster.setFromCamera(mouse, camera);
-        if (raycaster.intersectObject(doll).length > 0) {
-            if (!isLookingAtDoll) {
-                isLookingAtDoll = true;
-                shineCount++;
-                if (shineCount >= 3) triggerEvent();
-            }
-        } else { isLookingAtDoll = false; }
+    function triggerEvent() {
+        if(hasTriggered) return;
+        hasTriggered = true;
+        doll.visible = true;
+        crySound.play().catch(() => console.log("等待互動後播放音效"));
         
-        flashlight.intensity = 5 + Math.random() * 15;
+        const msg = document.createElement('div');
+        msg.id = "hint-text";
+        msg.style = "position:fixed; top:40px; width:100%; text-align:center; color:white; font-size:28px; text-shadow:0 0 10px red; letter-spacing:2px;";
+        msg.innerHTML = "咦？什麼時候出現這個東西的？";
+        document.body.appendChild(msg);
     }
-    renderer.render(scene, camera);
-}
-animate();
 
-function triggerEvent() {
-    hasTriggered = true;
-    doll.visible = true;
-    crySound.play().catch(() => console.log("等待點擊播放"));
-    
-    const msg = document.createElement('div');
-    msg.style = "position:fixed; top:20px; width:100%; text-align:center; color:white; font-size:24px; text-shadow:2px 2px 5px black;";
-    msg.innerHTML = "咦？什麼時候出現這個東西的？";
-    document.body.appendChild(msg);
-}
+    function showOptions() {
+        if(document.getElementById('option-menu')) return;
+        const menu = document.createElement('div');
+        menu.id = "option-menu";
+        menu.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.9); padding:40px; border:2px solid red; color:white; text-align:center; z-index:1000;";
+        menu.innerHTML = `
+            <h2 style="color:#ff4444">你要怎麼處理這個玩偶？</h2>
+            <button onclick="endGame('你立刻回報行控中心：<br>「OCC，大安袋形軌 134 車呼叫，拾獲一個娃娃」，<br>但通訊波道只傳來一陣淒厲的雜音...')">1. 立即通知行控</button><br>
+            <button onclick="endGame('你轉身走回駕駛室，<br>卻發現原本通往駕駛室的門已經變成了死牆...')">2. 折返很忙，晚點再說</button><br>
+            <button onclick="endGame('相機閃光燈亮起，<br>螢幕裡的娃娃對你露出了扭曲的笑容...')">3. 拿出手機來拍照好了</button>
+        `;
+        document.body.appendChild(menu);
+    }
 
-function showOptions() {
-    const menu = document.createElement('div');
-    menu.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.9); padding:30px; border:1px solid red; color:white; text-align:center; z-index:100;";
-    menu.innerHTML = `
-        <p>你要怎麼處理這個玩偶？</p>
-        <button onclick="endGame('你立刻回報行控中心，<br>「OCC，大安袋形軌 134 車呼叫，拾獲一個娃娃」，<br>但通訊波道只傳來雜音...')">1. 立即通知行控</button><br><br>
-        <button onclick="endGame('你轉身走回駕駛室，卻發現身後的車廂門打不開了...')">2. 折返很忙，晚點再說</button><br><br>
-        <button onclick="endGame('相機閃光燈亮起，玩偶的臉在螢幕裡裂開了笑了...')">3. 拿出手機來拍照好了</button>
-    `;
-    document.body.appendChild(menu);
-}
+    window.endGame = function(msg) {
+        gameEnded = true;
+        crySound.pause();
+        document.body.innerHTML = `<div style="background:black; color:#ff4444; height:100vh; display:flex; align-items:center; justify-content:center; font-size:24px; text-align:center; padding:40px; line-height:1.8; border: 10px double red;">${msg}</div>`;
+    };
 
-window.endGame = function(msg) {
-    gameEnded = true;
-    crySound.pause();
-    document.body.innerHTML = `<div style="background:black; color:red; height:100vh; display:flex; align-items:center; justify-content:center; font-size:22px; text-align:center; padding:30px; line-height:1.6;">${msg}</div>`;
-};
+    // 視窗縮放自動調整
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+</script>
+</body>
+</html>
