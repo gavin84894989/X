@@ -1,39 +1,3 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>北捷袋形軌探險</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: black; font-family: "Microsoft JhengHei", sans-serif; }
-        canvas { display: block; }
-        
-        /* 開始畫面覆蓋層 */
-        #overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: black; color: white; display: flex; align-items: center;
-            justify-content: center; cursor: pointer; z-index: 2000; font-size: 24px;
-        }
-
-        /* 選項按鈕 */
-        button {
-            background: rgba(40, 40, 40, 0.8);
-            color: white; border: 1px solid #ff4444;
-            padding: 12px 24px; margin: 10px; cursor: pointer;
-            font-size: 18px; transition: 0.3s;
-        }
-        button:hover { background: #ff4444; color: black; }
-
-        /* 重新開始按鈕 */
-        .restart-btn {
-            margin-top: 30px; background: white; color: black; border: none; font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-
-<div id="overlay">點擊螢幕開啟手電筒...</div>
-
 <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
     import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/GLTFLoader.js';
@@ -55,7 +19,7 @@
     const BGM_SOUND = './bgm.mp3';
     const RADIO_SOUND = './radio.mp3';
 
-    // --- C. 手電筒 (初始強度為 0) ---
+    // --- C. 手電筒 ---
     const flashlight = new THREE.SpotLight(0xffffff, 0); 
     flashlight.angle = Math.PI / 8;
     flashlight.penumbra = 0.5;
@@ -75,14 +39,14 @@
         gltf.scene.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
     });
 
-    // --- F. 平面娃娃 (Sprite) ---
+    // --- F. 平面娃娃 ---
     const textureLoader = new THREE.TextureLoader();
     const dollMap = textureLoader.load(DOLL_IMAGE_PATH);
     const dollMaterial = new THREE.SpriteMaterial({ map: dollMap, transparent: true });
     const doll = new THREE.Sprite(dollMaterial);
     
-    doll.scale.set(0.3, 0.3, 1);     // 縮小尺寸
-    doll.position.set(0.5, -0.7, -0.9); // 移近一點，稍微偏右方便掃到
+    doll.scale.set(0.3, 0.3, 1); 
+    doll.position.set(0.5, -0.7, -3); 
     doll.visible = false; 
     scene.add(doll);
 
@@ -93,30 +57,48 @@
     let hasTriggered = false;
     let gameEnded = false;
 
-    // --- H. 事件監聽 ---
+    // --- H. 核心控制邏輯 (統一代碼) ---
+    function updateInput(clientX, clientY) {
+        mouse.x = (clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+        // 更新手電筒目標位置
+        flashlight.target.position.set(mouse.x * 10, mouse.y * 10, -10);
+        flashlight.position.copy(camera.position);
+    }
 
-    // 開始遊戲點擊
+    // 滑鼠事件
+    window.addEventListener('mousemove', (e) => {
+        updateInput(e.clientX, e.clientY);
+    });
+
+    // 觸控事件 (手機端)
+    window.addEventListener('touchstart', (e) => {
+        updateInput(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        // 防止手機滑動時捲動頁面，讓操作更順暢
+        if (e.cancelable) e.preventDefault(); 
+        updateInput(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    // 開始遊戲點擊 (同時支援手機 tap)
     document.getElementById('overlay').addEventListener('click', () => {
         if (!gameStarted) {
             gameStarted = true;
             document.getElementById('overlay').style.display = 'none';
-            flashlight.intensity = 15; // 點擊後開啟手電筒
+            flashlight.intensity = 15;
             bgm.play().catch(e => console.log("BGM 播放失敗"));
         }
     });
 
-    window.addEventListener('mousemove', (e) => {
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        flashlight.target.position.set(mouse.x * 10, mouse.y * 10, -10);
-        flashlight.position.copy(camera.position);
-    });
-
+    // 點擊娃娃
     window.addEventListener('click', () => {
         if (doll.visible && !gameEnded) {
             raycaster.setFromCamera(mouse, camera);
-            if (raycaster.intersectObject(doll).length > 0) {
-                cry.pause(); // 點擊娃娃後哭聲停止
+            const intersects = raycaster.intersectObject(doll);
+            if (intersects.length > 0) {
+                cry.pause();
                 showOptions();
             }
         }
@@ -134,7 +116,6 @@
                 }
             } else { isLookingAtDoll = false; }
             
-            // 燈光閃爍效果
             flashlight.intensity = 10 + Math.random() * 8;
         }
         renderer.render(scene, camera);
@@ -146,12 +127,16 @@
         hasTriggered = true;
         doll.visible = true;
         
-        // 播放哭聲
-        cry.play().catch(e => console.log("哭聲播放失敗"));
+        // 確保播放哭聲
+        cry.currentTime = 0; // 重設時間
+        const playPromise = cry.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(e => console.log("哭聲播放失敗，原因：", e));
+        }
         
         const msg = document.createElement('div');
         msg.id = "hint-text";
-        msg.style = "position:fixed; top:40px; width:100%; text-align:center; color:white; font-size:28px; text-shadow:0 0 10px red; letter-spacing:2px; z-index:100;";
+        msg.style = "position:fixed; top:40px; width:100%; text-align:center; color:white; font-size:24px; text-shadow:0 0 10px red; letter-spacing:2px; z-index:100; pointer-events: none;";
         msg.innerHTML = "咦？什麼時候出現這個東西的？";
         document.body.appendChild(msg);
     }
@@ -160,9 +145,9 @@
         if(document.getElementById('option-menu')) return;
         const menu = document.createElement('div');
         menu.id = "option-menu";
-        menu.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.95); padding:40px; border:2px solid red; color:white; text-align:center; z-index:1000;";
+        menu.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.95); padding:30px; border:2px solid red; color:white; text-align:center; z-index:1000; width: 80%;";
         menu.innerHTML = `
-            <h2 style="color:#ff4444">你要怎麼處理這個玩偶？</h2>
+            <h2 style="color:#ff4444; font-size: 20px;">你要怎麼處理這個玩偶？</h2>
             <button onclick="endWithRadio('你立刻回報行控中心：<br>「OCC，大安袋形軌 134 車呼叫，拾獲一個娃娃」，<br>但通訊波道只傳來一陣淒厲的雜音...')">1. 立即通知行控</button><br>
             <button onclick="endGame('你轉身走回駕駛室，<br>卻發現原本通往駕駛室的門已經變成了死牆...')">2. 折返很忙，晚點再說</button><br>
             <button onclick="endGame('相機閃光燈亮起，<br>螢幕裡的娃娃對你露出了扭曲的笑容...')">3. 拿出手機來拍照好了</button>
@@ -170,13 +155,12 @@
         document.body.appendChild(menu);
     }
 
-    // 特別處理第一個選項：先播無線電聲再結束
     window.endWithRadio = function(msg) {
         bgm.pause();
         radio.play();
         setTimeout(() => {
             endGame(msg);
-        }, 2000); // 聲音播 2 秒後進入結束畫面
+        }, 2000);
     }
 
     window.endGame = function(msg) {
@@ -184,8 +168,8 @@
         bgm.pause();
         cry.pause();
         document.body.innerHTML = `
-            <div style="background:black; color:#ff4444; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:22px; text-align:center; padding:40px; line-height:1.8; border: 10px double red;">
-                <div>${msg}</div>
+            <div style="background:black; color:#ff4444; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; text-align:center; padding:30px; line-height:1.8; border: 5px double red;">
+                <div style="margin-bottom: 20px;">${msg}</div>
                 <button class="restart-btn" onclick="location.reload()">重新開始挑戰</button>
             </div>`;
     };
@@ -197,5 +181,3 @@
     });
 
 </script>
-</body>
-</html>
