@@ -7,21 +7,32 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: black; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
-        /* 讓選項按鈕漂亮一點 */
+        
+        /* 開始畫面覆蓋層 */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; color: white; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; z-index: 2000; font-size: 24px;
+        }
+
+        /* 選項按鈕 */
         button {
             background: rgba(40, 40, 40, 0.8);
-            color: white;
-            border: 1px solid #ff4444;
-            padding: 12px 24px;
-            margin: 10px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: 0.3s;
+            color: white; border: 1px solid #ff4444;
+            padding: 12px 24px; margin: 10px; cursor: pointer;
+            font-size: 18px; transition: 0.3s;
         }
         button:hover { background: #ff4444; color: black; }
+
+        /* 重新開始按鈕 */
+        .restart-btn {
+            margin-top: 30px; background: white; color: black; border: none; font-weight: bold;
+        }
     </style>
 </head>
 <body>
+
+<div id="overlay">點擊螢幕開啟手電筒...</div>
 
 <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
@@ -37,43 +48,62 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // --- B. 資源路徑 (直接抓取你 GitHub 裡上傳的檔案) ---
+    // --- B. 資源路徑 ---
     const MODEL_PATH = './scene.glb';
     const DOLL_IMAGE_PATH = './doll.png';
-    const SOUND_PATH = './cry.mp3';
+    const CRY_SOUND = './cry.mp3';
+    const BGM_SOUND = './bgm.mp3';
+    const RADIO_SOUND = './radio.mp3';
 
-    // --- C. 手電筒 ---
-    const flashlight = new THREE.SpotLight(0xffffff, 20); 
+    // --- C. 手電筒 (初始強度為 0) ---
+    const flashlight = new THREE.SpotLight(0xffffff, 0); 
     flashlight.angle = Math.PI / 8;
     flashlight.penumbra = 0.5;
     flashlight.distance = 25;
     scene.add(flashlight);
     scene.add(flashlight.target);
 
-    // --- D. 載入車廂 ---
+    // --- D. 音效物件 ---
+    const bgm = new Audio(BGM_SOUND); bgm.loop = true;
+    const cry = new Audio(CRY_SOUND); cry.loop = true;
+    const radio = new Audio(RADIO_SOUND);
+
+    // --- E. 載入車廂 ---
     const loader = new GLTFLoader();
     loader.load(MODEL_PATH, (gltf) => {
         scene.add(gltf.scene);
         gltf.scene.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
     });
 
-    // --- E. 平面娃娃 (Sprite) ---
+    // --- F. 平面娃娃 (Sprite) ---
     const textureLoader = new THREE.TextureLoader();
     const dollMap = textureLoader.load(DOLL_IMAGE_PATH);
     const dollMaterial = new THREE.SpriteMaterial({ map: dollMap, transparent: true });
     const doll = new THREE.Sprite(dollMaterial);
-    doll.scale.set(0.6, 0.6, 1); 
-    doll.position.set(0, -0.6, -1); // 放在稍微深一點的地方
+    
+    doll.scale.set(0.3, 0.3, 1);     // 縮小尺寸
+    doll.position.set(0.5, -0.7, -3); // 移近一點，稍微偏右方便掃到
     doll.visible = false; 
     scene.add(doll);
 
-    // --- F. 遊戲邏輯 ---
+    // --- G. 狀態控制 ---
+    let gameStarted = false;
     let shineCount = 0;
     let isLookingAtDoll = false;
     let hasTriggered = false;
     let gameEnded = false;
-    const crySound = new Audio(SOUND_PATH);
-    crySound.loop = true;
+
+    // --- H. 事件監聽 ---
+
+    // 開始遊戲點擊
+    document.getElementById('overlay').addEventListener('click', () => {
+        if (!gameStarted) {
+            gameStarted = true;
+            document.getElementById('overlay').style.display = 'none';
+            flashlight.intensity = 15; // 點擊後開啟手電筒
+            bgm.play().catch(e => console.log("BGM 播放失敗"));
+        }
+    });
 
     window.addEventListener('mousemove', (e) => {
         mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -82,17 +112,19 @@
         flashlight.position.copy(camera.position);
     });
 
-    // 點擊事件
     window.addEventListener('click', () => {
         if (doll.visible && !gameEnded) {
             raycaster.setFromCamera(mouse, camera);
-            if (raycaster.intersectObject(doll).length > 0) showOptions();
+            if (raycaster.intersectObject(doll).length > 0) {
+                cry.pause(); // 點擊娃娃後哭聲停止
+                showOptions();
+            }
         }
     });
 
     function animate() {
         requestAnimationFrame(animate);
-        if (!gameEnded) {
+        if (gameStarted && !gameEnded) {
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.intersectObject(doll).length > 0) {
                 if (!isLookingAtDoll) {
@@ -102,7 +134,8 @@
                 }
             } else { isLookingAtDoll = false; }
             
-            flashlight.intensity = 8 + Math.random() * 12; // 讓燈光閃爍
+            // 燈光閃爍效果
+            flashlight.intensity = 10 + Math.random() * 8;
         }
         renderer.render(scene, camera);
     }
@@ -112,11 +145,13 @@
         if(hasTriggered) return;
         hasTriggered = true;
         doll.visible = true;
-        crySound.play().catch(() => console.log("等待互動後播放音效"));
+        
+        // 播放哭聲
+        cry.play().catch(e => console.log("哭聲播放失敗"));
         
         const msg = document.createElement('div');
         msg.id = "hint-text";
-        msg.style = "position:fixed; top:40px; width:100%; text-align:center; color:white; font-size:28px; text-shadow:0 0 10px red; letter-spacing:2px;";
+        msg.style = "position:fixed; top:40px; width:100%; text-align:center; color:white; font-size:28px; text-shadow:0 0 10px red; letter-spacing:2px; z-index:100;";
         msg.innerHTML = "咦？什麼時候出現這個東西的？";
         document.body.appendChild(msg);
     }
@@ -125,23 +160,36 @@
         if(document.getElementById('option-menu')) return;
         const menu = document.createElement('div');
         menu.id = "option-menu";
-        menu.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.9); padding:40px; border:2px solid red; color:white; text-align:center; z-index:1000;";
+        menu.style = "position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.95); padding:40px; border:2px solid red; color:white; text-align:center; z-index:1000;";
         menu.innerHTML = `
             <h2 style="color:#ff4444">你要怎麼處理這個玩偶？</h2>
-            <button onclick="endGame('你立刻回報行控中心：<br>「OCC，大安袋形軌 134 車呼叫，拾獲一個娃娃」，<br>但通訊波道只傳來一陣淒厲的雜音...')">1. 立即通知行控</button><br>
+            <button onclick="endWithRadio('你立刻回報行控中心：<br>「OCC，大安袋形軌 134 車呼叫，拾獲一個娃娃」，<br>但通訊波道只傳來一陣淒厲的雜音...')">1. 立即通知行控</button><br>
             <button onclick="endGame('你轉身走回駕駛室，<br>卻發現原本通往駕駛室的門已經變成了死牆...')">2. 折返很忙，晚點再說</button><br>
             <button onclick="endGame('相機閃光燈亮起，<br>螢幕裡的娃娃對你露出了扭曲的笑容...')">3. 拿出手機來拍照好了</button>
         `;
         document.body.appendChild(menu);
     }
 
+    // 特別處理第一個選項：先播無線電聲再結束
+    window.endWithRadio = function(msg) {
+        bgm.pause();
+        radio.play();
+        setTimeout(() => {
+            endGame(msg);
+        }, 2000); // 聲音播 2 秒後進入結束畫面
+    }
+
     window.endGame = function(msg) {
         gameEnded = true;
-        crySound.pause();
-        document.body.innerHTML = `<div style="background:black; color:#ff4444; height:100vh; display:flex; align-items:center; justify-content:center; font-size:24px; text-align:center; padding:40px; line-height:1.8; border: 10px double red;">${msg}</div>`;
+        bgm.pause();
+        cry.pause();
+        document.body.innerHTML = `
+            <div style="background:black; color:#ff4444; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:22px; text-align:center; padding:40px; line-height:1.8; border: 10px double red;">
+                <div>${msg}</div>
+                <button class="restart-btn" onclick="location.reload()">重新開始挑戰</button>
+            </div>`;
     };
 
-    // 視窗縮放自動調整
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
