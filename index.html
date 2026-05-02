@@ -102,14 +102,23 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // --- B. 燈光與音效 ---
+// --- B. 燈光與音效 (暴力除錯版) ---
+    // 1. 手電筒主光源 (SpotLight) - 參數極大化
     const flashlight = new THREE.SpotLight(0xffffff, 0); 
-    flashlight.angle = Math.PI / 6;  // 光束角度 (稍微調大一點點，避免視野太窄)
-    flashlight.penumbra = 0.5;       // 邊緣柔化 (0.5 會讓光圈邊緣有真實手電筒的漸層散開效果)
-    flashlight.distance = 40;        // 照射距離 (距離 30 之外絕對黑暗)
-    flashlight.decay = 2;            // 光線衰減率 (物理光照真實衰減，越遠越暗)
+    flashlight.angle = Math.PI / 4;  // 光束角度拉大至 45 度
+    flashlight.penumbra = 0.2;       // 邊緣銳化
+    flashlight.distance = 500;       // 距離拉到極遠，避免過早衰減
+    flashlight.decay = 0.5;          // 物理衰減降到極低
     scene.add(flashlight);
     scene.add(flashlight.target);
+
+    // 2. 輔助點光源 (PointLight) - 作為手電筒周圍的「泛光」
+    const fillLight = new THREE.PointLight(0xffffff, 0, 100);
+    scene.add(fillLight);
+    
+    // 3. 環境光 (AmbientLight) - 保底微光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+    scene.add(ambientLight);
 
     const bgm = new Audio('./bgm.mp3'); bgm.loop = true;
     const cry = new Audio('./cry.mp3'); cry.loop = true;
@@ -121,9 +130,7 @@
     let gameState = "INTRO";
     let shineCount = 0;
 
-    // --- B-1. 加入極微弱環境光保底 (0.05 強度) ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
-    scene.add(ambientLight);
+
 
     // --- B-2. 載入模型 (加入錯誤回報 Alert) ---
     loader.load('./駕駛室.glb', (g) => { 
@@ -140,7 +147,7 @@
         scene.add(carriage); 
     }, undefined, (error) => { alert("錯誤：找不到車廂 scene.glb"); });
     
-    loader.load('./櫃檯.glb', (g) => { 
+    loader.load('./櫃台.glb', (g) => { 
         counter = g.scene; 
         counter.visible = false; 
         // 櫃檯 Y 軸也建議不要是 0，預設先放好
@@ -173,7 +180,18 @@
 
     // 1. 開始點擊
     overlay.addEventListener('click', () => {
-        if (gameState === "INTRO") {
+        // 在 animate() 內部修改光源跟隨邏輯：
+    if (gameState !== "INTRO") {
+        // 手電筒放置在攝影機下方 0.3 的位置
+        flashlight.position.set(camera.position.x, camera.position.y - 0.3, camera.position.z);
+        fillLight.position.copy(camera.position); // 泛光維持在中心
+        
+        // Target 拉遠，確保光束正確投射
+        flashlight.target.position.set(
+            camera.position.x + mouse.x * 50, 
+            camera.position.y + mouse.y * 50, 
+            camera.position.z - 50
+        );
             gameState = "DREAMING";
             bgm.play();
             showText("我是誰？我怎麼會在這裡？", 2000, () => {
@@ -194,16 +212,15 @@
         showText("裡面有一字起、鉤子、鑰匙...<br>拿出手電筒看看吧。", 2500);
     });
 
-// 3. 點擊手電筒 (駕駛室探照階段)
+// 3. 點擊手電筒
 document.getElementById('btn-flashlight').addEventListener('click', () => {
-        flashlight.intensity = 15;
+        flashlight.intensity = 150; // 強度直接放大 10 倍
+        fillLight.intensity = 50;   // 同步開啟泛光
         invContainer.style.display = "none";
         
-        // 提示字出現後即隱藏黑屏，讓玩家可以在 scene(1).glb 駕駛室自由探照
         showText("開啟手電筒了。試著晃動螢幕觀察四周...", 3000, () => {
             showText("對了！我得折返檢視。", 2500, () => {
                 overlay.style.display = "none"; 
-                // 顯示前往車廂的按鈕，將主導權交還給玩家
                 document.getElementById('btn-goto-carriage').style.display = "block";
             });
         });
