@@ -3,83 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>北捷遺失物任務 - 袋形軌探險</title>
+    <title>北捷遺失物任務 - 修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: black; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
 
-        /* 黑色全屏覆蓋層（文字與按鈕） */
+        /* 黑色全屏覆蓋層 */
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: black; color: white; display: flex; flex-direction: column;
             align-items: center; justify-content: center; z-index: 2000;
-            padding: 20px; text-align: center;
+            padding: 20px; text-align: center; pointer-events: auto;
         }
 
-        /* 大標題與對話框 */
         #dialog-text {
-            font-size: 32px; line-height: 1.6; max-width: 80%;
-            text-shadow: 2px 2px 5px rgba(255,0,0,0.5); font-weight: bold;
+            font-size: 28px; line-height: 1.6; max-width: 85%;
+            text-shadow: 2px 2px 5px rgba(255,0,0,0.8); font-weight: bold;
         }
 
-        /* 配件包 UI */
-        #inventory {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            display: none; gap: 10px; z-index: 1000; width: 90%; justify-content: center;
+        /* 改良版配件包 UI */
+        #inventory-container {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 3000; display: none; flex-direction: column; align-items: center; width: 90%;
+        }
+        
+        /* 初始的大包包按鈕 */
+        #btn-bag-main {
+            background: #442200; border: 3px solid #ffd700; color: white;
+            padding: 20px 40px; font-size: 24px; cursor: pointer; border-radius: 10px;
+            box-shadow: 0 0 15px rgba(255,215,0,0.5);
+        }
+
+        /* 點開後顯示的工具列 */
+        #tools-list {
+            display: none; gap: 10px; width: 100%; margin-top: 10px;
         }
         .tool {
-            background: rgba(40, 40, 40, 0.9); border: 2px solid #666; color: #ccc;
-            padding: 15px 10px; font-size: 16px; cursor: pointer; flex: 1; text-align: center;
+            background: rgba(30, 30, 30, 0.9); border: 2px solid #888; color: #ccc;
+            padding: 15px 5px; font-size: 15px; cursor: pointer; flex: 1; text-align: center;
         }
-        #btn-flashlight { border-color: #ff4444; color: white; font-weight: bold; }
+        #btn-flashlight { border-color: #00ff00; color: white; font-weight: bold; box-shadow: 0 0 10px #00ff00; }
 
         /* 選項選單 */
         #option-menu {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.95); padding: 30px; border: 3px solid #ff4444;
-            display: none; z-index: 3000; width: 80%; text-align: center;
+            display: none; z-index: 3500; width: 85%; text-align: center;
         }
         .opt-btn {
-            display: block; width: 100%; padding: 20px; margin: 15px 0;
-            font-size: 24px; background: #333; color: white; border: 1px solid white; cursor: pointer;
+            display: block; width: 100%; padding: 18px; margin: 12px 0;
+            font-size: 22px; background: #222; color: white; border: 1px solid white; cursor: pointer;
         }
-        .opt-btn:hover { background: #ff4444; }
 
-        /* 驚嚇與成功畫面 */
+        /* 結局畫面 */
         #full-screen-img {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: none; z-index: 4000; object-fit: contain; background: black;
-        }
-        #jump-scare-text {
-            position: fixed; top: 70%; left: 50%; transform: translate(-50%, -50%);
-            color: white; font-size: 50px; font-weight: bold; z-index: 4001; display: none; text-shadow: 0 0 20px red;
         }
     </style>
 </head>
 <body>
 
 <div id="overlay">
-    <div id="dialog-text">點擊開始</div>
+    <div id="dialog-text">【 點擊開始任務 】</div>
 </div>
 
-<div id="inventory">
-    <div class="tool">配件包</div>
-    <div class="tool">一字起子</div>
-    <div class="tool">鉤子</div>
-    <div class="tool">備用鑰匙</div>
-    <div class="tool" id="btn-flashlight">手電筒</div>
+<!-- 改良版配件包結構 -->
+<div id="inventory-container">
+    <div id="btn-bag-main">🧳 開啟配件包</div>
+    <div id="tools-list">
+        <div class="tool">一字起子</div>
+        <div class="tool">鉤子</div>
+        <div class="tool">備用鑰匙</div>
+        <div id="btn-flashlight" class="tool">🔦 手電筒</div>
+    </div>
 </div>
 
 <div id="option-menu"></div>
-
-<img id="full-screen-img" src="" alt="Ending">
-<div id="jump-scare-text"></div>
+<img id="full-screen-img" src="">
 
 <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
     import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/GLTFLoader.js';
 
-    // --- A. 初始化環境 ---
+    // --- A. 基本設定 ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -90,10 +97,9 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // --- B. 燈光與音效 ---
+    // 燈光與音效
     const flashlight = new THREE.SpotLight(0xffffff, 0); 
     flashlight.angle = Math.PI / 8;
-    flashlight.penumbra = 0.4;
     scene.add(flashlight);
     scene.add(flashlight.target);
 
@@ -102,27 +108,27 @@
     const radio = new Audio('./radio.mp3');
     const successSnd = new Audio('./success.mp3');
 
-    // --- C. 載入模型與素材 ---
+    // 資源變數
     let cockpit, carriage, counter, assistant, doll;
-    
-    // 預載入 3D 模型
-    loader.load('./scene(1).glb', (gltf) => { cockpit = gltf.scene; cockpit.visible = false; scene.add(cockpit); });
-    loader.load('./scene.glb', (gltf) => { carriage = gltf.scene; carriage.visible = false; scene.add(carriage); });
-    loader.load('./scene(2).glb', (gltf) => { 
-        counter = gltf.scene; counter.visible = false; 
+    let gameState = "INTRO";
+    let shineCount = 0;
+
+    // --- B. 載入模型 ---
+    loader.load('./scene(1).glb', (g) => { cockpit = g.scene; cockpit.visible = false; scene.add(cockpit); });
+    loader.load('./scene.glb', (g) => { carriage = g.scene; carriage.visible = false; scene.add(carriage); });
+    loader.load('./scene(2).glb', (g) => { 
+        counter = g.scene; counter.visible = false; 
         counter.position.set(0, 0, -100);
         scene.add(counter); 
     });
 
-    // 娃娃 Sprite
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
     doll.scale.set(0.4, 0.4, 1);
-    doll.position.set(0.6, -0.6, -1.2);
+    doll.position.set(0.5, -0.6, -1.2);
     doll.visible = false;
     scene.add(doll);
 
-    // 助理 Sprite
     const asstTex = new THREE.TextureLoader().load('./助理.png');
     assistant = new THREE.Sprite(new THREE.SpriteMaterial({ map: asstTex }));
     assistant.scale.set(1, 2, 1);
@@ -130,38 +136,43 @@
     assistant.visible = false;
     scene.add(assistant);
 
-    // --- D. 遊戲邏輯控制 ---
-    let gameState = "INTRO";
-    let shineCount = 0;
-    let isGameEnded = false;
+    // --- C. 流程控制 ---
 
     const overlay = document.getElementById('overlay');
     const dialogText = document.getElementById('dialog-text');
-    const inventory = document.getElementById('inventory');
+    const invContainer = document.getElementById('inventory-container');
+    const btnBagMain = document.getElementById('btn-bag-main');
+    const toolsList = document.getElementById('tools-list');
 
-    // 點擊事件流
+    // 1. 開始點擊
     overlay.addEventListener('click', () => {
         if (gameState === "INTRO") {
             gameState = "DREAMING";
             bgm.play();
-            updateDialog("我是誰？<br>我怎麼會在這裡？", 2500, () => {
-                updateDialog("這裡好像是袋形軌，<br>我先找看看配件包有沒有什麼可以幫助我的。", 3000, () => {
-                    overlay.style.background = "transparent";
-                    dialogText.style.display = "none";
-                    inventory.style.display = "flex";
+            showText("我是誰？我怎麼會在這裡？", 2000, () => {
+                showText("這裡好像是袋形軌，<br>我先找看看配件包有沒有什麼可以幫助我的。", 3000, () => {
+                    overlay.style.display = "none";
+                    invContainer.style.display = "flex";
                     cockpit.visible = true;
-                    gameState = "COCKPIT";
+                    gameState = "BAG_SEARCH";
                 });
             });
         }
     });
 
-    // 手電筒開啟
+    // 2. 點擊配件包
+    btnBagMain.addEventListener('click', () => {
+        btnBagMain.style.display = "none";
+        toolsList.style.display = "flex";
+        showText("裡面有一字起、鉤子、鑰匙...<br>拿出手電筒看看吧。", 2500);
+    });
+
+    // 3. 點擊手電筒
     document.getElementById('btn-flashlight').addEventListener('click', () => {
-        if (gameState === "COCKPIT") {
-            flashlight.intensity = 15;
-            inventory.style.display = "none";
-            updateDialog("對了！我得折返檢視。", 2000, () => {
+        flashlight.intensity = 15;
+        invContainer.style.display = "none";
+        showText("開啟手電筒了。試著晃動螢幕觀察四周...", 3000, () => {
+            showText("對了！我得折返檢視。", 2000, () => {
                 // 跳轉至車廂
                 cockpit.visible = false;
                 carriage.visible = true;
@@ -169,31 +180,28 @@
                 gameState = "CARRIAGE";
                 doll.visible = true;
                 cry.play();
-                updateDialog("巡視一下車廂各處，<br>看看有沒有旅客遺失物...", 3000);
+                overlay.style.display = "none";
             });
-        }
+        });
     });
 
-    // 動畫循環
+    // --- D. 互動核心 ---
+
     function animate() {
         requestAnimationFrame(animate);
-        if (gameState !== "INTRO" && !isGameEnded) {
-            // 手電筒跟隨滑鼠/手指
+        if (gameState !== "INTRO") {
+            // 手電筒跟隨
             flashlight.position.copy(camera.position);
             flashlight.target.position.set(mouse.x * 5, mouse.y * 5, camera.position.z - 5);
 
             if (gameState === "CARRIAGE") {
                 raycaster.setFromCamera(mouse, camera);
                 const intersects = raycaster.intersectObject(doll);
-                
                 if (intersects.length > 0) {
-                    if (shineCount < 3) {
-                        doll.visible = false; // 照到消失
-                    } else {
-                        doll.visible = true; // 照三次後固定
-                    }
+                    if (shineCount < 3) doll.visible = false;
+                    else doll.visible = true;
                 } else {
-                    if (shineCount < 3) doll.visible = true; // 沒照到時顯現
+                    if (shineCount < 3) doll.visible = true;
                 }
             }
         }
@@ -201,113 +209,91 @@
     }
     animate();
 
-    // 處理手電筒照到的次數
-    window.addEventListener('mousemove', (e) => {
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    });
-    window.addEventListener('touchstart', (e) => {
-        mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
-        mouse.y = (e.touches[0].clientY / window.innerHeight) * 2 + 1;
-    });
+    // 座標抓取
+    const updateMouse = (x, y) => {
+        mouse.x = (x / window.innerWidth) * 2 - 1;
+        mouse.y = -(y / window.innerHeight) * 2 + 1;
+    };
+    window.addEventListener('mousemove', (e) => updateMouse(e.clientX, e.clientY));
+    window.addEventListener('touchmove', (e) => updateMouse(e.touches[0].clientX, e.touches[0].clientY));
 
-    // 點擊娃娃
-    window.addEventListener('click', () => {
+    // 點擊判定
+    window.addEventListener('click', (e) => {
         if (gameState === "CARRIAGE") {
             raycaster.setFromCamera(mouse, camera);
-            const hit = raycaster.intersectObject(doll);
-            
-            if (hit.length > 0) {
-                if (shineCount < 3) {
-                    shineCount++;
-                } else {
-                    cry.pause();
-                    showSOPMenu();
-                }
+            if (raycaster.intersectObject(doll).length > 0) {
+                if (shineCount < 3) shineCount++;
+                else { cry.pause(); showSOP(); }
             }
         } else if (gameState === "COUNTER") {
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.intersectObject(assistant).length > 0) {
-                showEnding("SUCCESS", "完整遺失物撿拾流程，也完整旅客的笑容");
+                endGame("SUCCESS", "完整遺失物撿拾流程，也完整旅客的笑容");
             }
         }
     });
 
-    // --- E. 功能函數 ---
+    // --- E. 工具函式 ---
 
-    function updateDialog(txt, delay, callback) {
+    function showText(txt, delay, cb) {
         overlay.style.display = "flex";
-        dialogText.style.display = "block";
         dialogText.innerHTML = txt;
         if (delay) {
             setTimeout(() => {
-                if (!callback) overlay.style.display = "none";
-                if (callback) callback();
+                overlay.style.display = "none";
+                if (cb) cb();
             }, delay);
         }
     }
 
-    function showSOPMenu() {
+    function showSOP() {
         gameState = "MENU";
         const menu = document.getElementById('option-menu');
         menu.style.display = "block";
         menu.innerHTML = `
             <h2 style="color:red">你要怎麼處理這個遺失物？</h2>
-            <button class="opt-btn" onclick="choose(1)">1. 好詭異，但還是通報行控好了</button>
-            <button class="opt-btn" onclick="choose(2)">2. 把它放回去當作沒看到</button>
-            <button class="opt-btn" onclick="choose(3)">3. 好可愛~偷偷撿回去</button>
+            <button class="opt-btn" onclick="handleSOP(1)">1. 好詭異，但還是通報行控好了</button>
+            <button class="opt-btn" onclick="handleSOP(2)">2. 把它放回去當作沒看到</button>
+            <button class="opt-btn" onclick="handleSOP(3)">3. 好可愛~偷偷撿回去</button>
         `;
     }
 
-    window.choose = (id) => {
+    window.handleSOP = (id) => {
         document.getElementById('option-menu').style.display = "none";
         if (id === 1) {
-            updateDialog("(呼叫OCC，大安袋形軌112拾獲一個人型娃娃，請問是否有旅客協尋？)", 3000, () => {
+            showText("(呼叫OCC，大安袋形軌112拾獲一個人型娃娃，請問是否有旅客協尋？)", 3000, () => {
                 radio.play();
-                updateDialog("(OCC收到，目前無旅客協尋，依規定帶回車班處理)", 3000, () => {
-                    // 跳轉至櫃檯
-                    carriage.visible = false;
-                    counter.visible = true;
-                    assistant.visible = true;
+                showText("(OCC收到，目前無旅客協尋，依規定帶回車班處理)", 3000, () => {
+                    carriage.visible = false; counter.visible = true; assistant.visible = true;
                     camera.position.set(0, 0, -100);
                     gameState = "COUNTER";
-                    updateDialog("終於下車了，把遺失物交給助理然後填寫任務結束檢核吧", 3000);
+                    showText("終於下車了，把遺失物交給助理然後填寫任務結束檢核吧", 3000);
                 });
             });
-        } else if (id === 2) {
-            showEnding("SCARE", "你明明有看到我！！！！！！！");
-        } else {
-            showEnding("SCARE", "我才不要跟你回家！！！！！！");
-        }
+        } else if (id === 2) endGame("SCARE", "你明明有看到我！！！！！！！");
+        else endGame("SCARE", "我才不要跟你回家！！！！！！");
     };
 
-    function showEnding(type, txt) {
-        isGameEnded = true;
+    function endGame(type, txt) {
         bgm.pause();
         const img = document.getElementById('full-screen-img');
-        const scareTxt = document.getElementById('jump-scare-text');
-        
         if (type === "SCARE") {
             img.src = "./doll2.png";
-            scareTxt.innerHTML = txt;
             img.style.display = "block";
-            scareTxt.style.display = "block";
-            setTimeout(() => addRestartBtn(), 2000);
+            alert(txt); // 簡單粗暴的提示
         } else {
             successSnd.play();
             img.src = "./成功圖片.png";
             img.style.display = "block";
-            updateDialog(txt, null);
-            addRestartBtn();
+            showText(txt, null);
         }
-    }
-
-    function addRestartBtn() {
-        const btn = document.createElement('button');
-        btn.innerHTML = "再試一次";
-        btn.style = "position:fixed; bottom:10%; left:50%; transform:translateX(-50%); padding:20px 40px; font-size:30px; z-index:5000; background:white; color:black; font-weight:bold;";
-        btn.onclick = () => location.reload();
-        document.body.appendChild(btn);
+        setTimeout(() => {
+            const b = document.createElement('button');
+            b.innerHTML = "再試一次";
+            b.style = "position:fixed; bottom:10%; left:50%; transform:translateX(-50%); padding:20px 40px; font-size:24px; z-index:5000;";
+            b.onclick = () => location.reload();
+            document.body.appendChild(b);
+        }, 2000);
     }
 
     window.addEventListener('resize', () => {
@@ -315,7 +301,6 @@
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
 </script>
 </body>
 </html>
