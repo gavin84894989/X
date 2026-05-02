@@ -92,6 +92,8 @@
     // --- A. 基本設定 ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // 強制將攝影機抬高至 1.6 公尺 (人眼高度)
+    camera.position.set(0, 1.6, 0);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
@@ -119,28 +121,33 @@
     let gameState = "INTRO";
     let shineCount = 0;
 
-    // --- B-2. 載入模型 (強制寫入 THREE.DoubleSide 避免光線穿透) ---
+    // --- B-1. 加入極微弱環境光保底 (0.05 強度) ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+    scene.add(ambientLight);
+
+    // --- B-2. 載入模型 (加入錯誤回報 Alert) ---
     loader.load('./scene(1).glb', (g) => { 
         cockpit = g.scene; 
         cockpit.visible = false; 
         cockpit.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
         scene.add(cockpit); 
-    });
+    }, undefined, (error) => { alert("錯誤：找不到駕駛室 scene(1).glb"); });
     
     loader.load('./scene.glb', (g) => { 
         carriage = g.scene; 
         carriage.visible = false; 
         carriage.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
         scene.add(carriage); 
-    });
+    }, undefined, (error) => { alert("錯誤：找不到車廂 scene.glb"); });
     
     loader.load('./scene(2).glb', (g) => { 
         counter = g.scene; 
         counter.visible = false; 
+        // 櫃檯 Y 軸也建議不要是 0，預設先放好
         counter.position.set(0, 0, -100);
         counter.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
         scene.add(counter); 
-    });
+    }, undefined, (error) => { alert("錯誤：找不到櫃檯 scene(2).glb"); });
 
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
@@ -208,7 +215,7 @@ document.getElementById('btn-flashlight').addEventListener('click', () => {
         // 跳轉至車廂 scene.glb
         cockpit.visible = false;
         carriage.visible = true;
-        camera.position.set(0, 0, 0); // 確保攝影機座標重置
+        camera.position.set(0, 1.6, 0); // 確保攝影機座標重置
         gameState = "CARRIAGE";
         doll.visible = true;
         cry.play();
@@ -299,7 +306,7 @@ document.getElementById('btn-flashlight').addEventListener('click', () => {
                 radio.play();
                 showText("(OCC收到，目前無旅客協尋，依規定帶回車班處理)", 3000, () => {
                     carriage.visible = false; counter.visible = true; assistant.visible = true;
-                    camera.position.set(0, 0, -100);
+                    camera.position.set(0, 1.6, -100);
                     gameState = "COUNTER";
                     showText("終於下車了，把遺失物交給助理然後填寫任務結束檢核吧", 3000);
                 });
