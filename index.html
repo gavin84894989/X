@@ -158,8 +158,8 @@
 
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
-    doll.scale.set(1, 1, 1);
-    doll.position.set(0.5, -0.6, -0.9);
+    doll.scale.set(10, 10, 10);
+    doll.position.set(0.5, -0.6, -0.5);
     doll.visible = false;
     scene.add(doll);
 
