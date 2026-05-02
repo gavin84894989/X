@@ -97,11 +97,14 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // 燈光與音效
-    const flashlight = new THREE.SpotLight(0xffffff, 0); 
-    flashlight.angle = Math.PI / 8;
-    scene.add(flashlight);
-    scene.add(flashlight.target);
+// --- B. 燈光與音效 ---
+const flashlight = new THREE.SpotLight(0xffffff, 0); 
+flashlight.angle = Math.PI / 6;  // 光束角度 (稍微調大一點點，避免視野太窄)
+flashlight.penumbra = 0.5;       // 邊緣柔化 (0.5 會讓光圈邊緣有真實手電筒的漸層散開效果)
+flashlight.distance = 40;        // 照射距離 (距離 30 之外絕對黑暗)
+flashlight.decay = 2;            // 光線衰減率 (物理光照真實衰減，越遠越暗)
+scene.add(flashlight);
+scene.add(flashlight.target);
 
     const bgm = new Audio('./bgm.mp3'); bgm.loop = true;
     const cry = new Audio('./cry.mp3'); cry.loop = true;
