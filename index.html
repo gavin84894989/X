@@ -97,14 +97,14 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-// --- B. 燈光與音效 ---
-const flashlight = new THREE.SpotLight(0xffffff, 0); 
-flashlight.angle = Math.PI / 6;  // 光束角度 (稍微調大一點點，避免視野太窄)
-flashlight.penumbra = 0.5;       // 邊緣柔化 (0.5 會讓光圈邊緣有真實手電筒的漸層散開效果)
-flashlight.distance = 40;        // 照射距離 (距離 30 之外絕對黑暗)
-flashlight.decay = 2;            // 光線衰減率 (物理光照真實衰減，越遠越暗)
-scene.add(flashlight);
-scene.add(flashlight.target);
+    // --- B. 燈光與音效 ---
+    const flashlight = new THREE.SpotLight(0xffffff, 0); 
+    flashlight.angle = Math.PI / 6;  // 光束角度 (稍微調大一點點，避免視野太窄)
+    flashlight.penumbra = 0.5;       // 邊緣柔化 (0.5 會讓光圈邊緣有真實手電筒的漸層散開效果)
+    flashlight.distance = 40;        // 照射距離 (距離 30 之外絕對黑暗)
+    flashlight.decay = 2;            // 光線衰減率 (物理光照真實衰減，越遠越暗)
+    scene.add(flashlight);
+    scene.add(flashlight.target);
 
     const bgm = new Audio('./bgm.mp3'); bgm.loop = true;
     const cry = new Audio('./cry.mp3'); cry.loop = true;
@@ -116,12 +116,26 @@ scene.add(flashlight.target);
     let gameState = "INTRO";
     let shineCount = 0;
 
-    // --- B. 載入模型 ---
-    loader.load('./scene(1).glb', (g) => { cockpit = g.scene; cockpit.visible = false; scene.add(cockpit); });
-    loader.load('./scene.glb', (g) => { carriage = g.scene; carriage.visible = false; scene.add(carriage); });
+    // --- B-2. 載入模型 (強制寫入 THREE.DoubleSide 避免光線穿透) ---
+    loader.load('./scene(1).glb', (g) => { 
+        cockpit = g.scene; 
+        cockpit.visible = false; 
+        cockpit.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
+        scene.add(cockpit); 
+    });
+    
+    loader.load('./scene.glb', (g) => { 
+        carriage = g.scene; 
+        carriage.visible = false; 
+        carriage.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
+        scene.add(carriage); 
+    });
+    
     loader.load('./scene(2).glb', (g) => { 
-        counter = g.scene; counter.visible = false; 
+        counter = g.scene; 
+        counter.visible = false; 
         counter.position.set(0, 0, -100);
+        counter.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
         scene.add(counter); 
     });
 
@@ -193,9 +207,14 @@ scene.add(flashlight.target);
     function animate() {
         requestAnimationFrame(animate);
         if (gameState !== "INTRO") {
-            // 手電筒跟隨
+            // 手電筒精準跟隨
             flashlight.position.copy(camera.position);
-            flashlight.target.position.set(mouse.x * 5, mouse.y * 5, camera.position.z - 5);
+            // 修正 target 的計算，確保以相機為中心投射
+            flashlight.target.position.set(
+                camera.position.x + mouse.x * 10, 
+                camera.position.y + mouse.y * 10, 
+                camera.position.z - 10
+            );
 
             if (gameState === "CARRIAGE") {
                 raycaster.setFromCamera(mouse, camera);
