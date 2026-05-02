@@ -126,12 +126,12 @@
     scene.add(ambientLight);
 
     // --- B-2. 載入模型 (加入錯誤回報 Alert) ---
-    loader.load('./scene(1).glb', (g) => { 
+    loader.load('./駕駛室.glb', (g) => { 
         cockpit = g.scene; 
         cockpit.visible = false; 
         cockpit.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
         scene.add(cockpit); 
-    }, undefined, (error) => { alert("錯誤：找不到駕駛室 scene(1).glb"); });
+    }, undefined, (error) => { alert("錯誤：找不到駕駛室.glb"); });
     
     loader.load('./scene.glb', (g) => { 
         carriage = g.scene; 
@@ -140,14 +140,14 @@
         scene.add(carriage); 
     }, undefined, (error) => { alert("錯誤：找不到車廂 scene.glb"); });
     
-    loader.load('./scene(2).glb', (g) => { 
+    loader.load('./櫃檯.glb', (g) => { 
         counter = g.scene; 
         counter.visible = false; 
         // 櫃檯 Y 軸也建議不要是 0，預設先放好
         counter.position.set(0, 0, -100);
         counter.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; });
         scene.add(counter); 
-    }, undefined, (error) => { alert("錯誤：找不到櫃檯 scene(2).glb"); });
+    }, undefined, (error) => { alert("錯誤：找不到櫃檯.glb"); });
 
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
