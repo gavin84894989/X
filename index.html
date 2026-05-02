@@ -78,7 +78,10 @@
         <div id="btn-flashlight" class="tool">🔦 手電筒</div>
     </div>
 </div>
-
+<!-- 新增：手動切換到車廂的按鈕 -->
+<div id="btn-goto-carriage" style="display:none; position:fixed; top:20px; right:20px; background:#880000; color:white; padding:15px 25px; cursor:pointer; z-index:4000; border:2px solid white; font-size:20px; font-weight:bold;">
+    前往車廂巡視 ➔
+</div>
 <div id="option-menu"></div>
 <img id="full-screen-img" src="">
 
@@ -184,22 +187,31 @@
         showText("裡面有一字起、鉤子、鑰匙...<br>拿出手電筒看看吧。", 2500);
     });
 
-    // 3. 點擊手電筒
-    document.getElementById('btn-flashlight').addEventListener('click', () => {
+// 3. 點擊手電筒 (駕駛室探照階段)
+document.getElementById('btn-flashlight').addEventListener('click', () => {
         flashlight.intensity = 15;
         invContainer.style.display = "none";
+        
+        // 提示字出現後即隱藏黑屏，讓玩家可以在 scene(1).glb 駕駛室自由探照
         showText("開啟手電筒了。試著晃動螢幕觀察四周...", 3000, () => {
-            showText("對了！我得折返檢視。", 2000, () => {
-                // 跳轉至車廂
-                cockpit.visible = false;
-                carriage.visible = true;
-                camera.position.set(0, 0, 0);
-                gameState = "CARRIAGE";
-                doll.visible = true;
-                cry.play();
-                overlay.style.display = "none";
+            showText("對了！我得折返檢視。", 2500, () => {
+                overlay.style.display = "none"; 
+                // 顯示前往車廂的按鈕，將主導權交還給玩家
+                document.getElementById('btn-goto-carriage').style.display = "block";
             });
         });
+    });
+
+    // 4. 點擊前往車廂 (手動切換場景)
+    document.getElementById('btn-goto-carriage').addEventListener('click', () => {
+        document.getElementById('btn-goto-carriage').style.display = "none";
+        // 跳轉至車廂 scene.glb
+        cockpit.visible = false;
+        carriage.visible = true;
+        camera.position.set(0, 0, 0); // 確保攝影機座標重置
+        gameState = "CARRIAGE";
+        doll.visible = true;
+        cry.play();
     });
 
     // --- D. 互動核心 ---
