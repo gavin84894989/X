@@ -180,18 +180,7 @@
 
     // 1. 開始點擊
     overlay.addEventListener('click', () => {
-        // 在 animate() 內部修改光源跟隨邏輯：
-    if (gameState !== "INTRO") {
-        // 手電筒放置在攝影機下方 0.3 的位置
-        flashlight.position.set(camera.position.x, camera.position.y - 0.3, camera.position.z);
-        fillLight.position.copy(camera.position); // 泛光維持在中心
-        
-        // Target 拉遠，確保光束正確投射
-        flashlight.target.position.set(
-            camera.position.x + mouse.x * 50, 
-            camera.position.y + mouse.y * 50, 
-            camera.position.z - 50
-        );
+        if (gameState === "INTRO") {
             gameState = "DREAMING";
             bgm.play();
             showText("我是誰？我怎麼會在這裡？", 2000, () => {
