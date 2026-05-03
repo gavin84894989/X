@@ -127,7 +127,7 @@
     // Z 設定為 -4  (距離玩家前方 4 公尺)
     doll.position.set(1.5, 1.6, -4); 
     
-    doll.visible = true; // 強制先設為 true 測試，確認看得到後再改回 false 走遊戲躲貓貓邏輯
+    doll.visible = false; // 強制先設為 true 測試，確認看得到後再改回 false 走遊戲躲貓貓邏輯
     scene.add(doll);
 
     // --- 修正助理座標與大小 ---
@@ -163,8 +163,8 @@
         fillLight.intensity = 1.5; // 泛光僅作微弱補光
         invContainer.style.display = "none";
         
-        showText("開啟手電筒了。試著晃動螢幕觀察四周...", 3000, () => {
-            showText("對了！我得折返檢視。", 4000, () => {
+        showText("開啟手電筒了。試著晃動螢幕觀察四周...", 5000, () => {
+            showText("對了！我得折返檢視。", 2500, () => {
                 overlay.style.display = "none"; document.getElementById('btn-goto-carriage').style.display = "block";
             });
         });
@@ -199,7 +199,7 @@
                         
                         // 娃娃瞬間放大貼近螢幕
                         doll.scale.set(7.32, 4, 1); // 放大兩倍
-                        doll.position.set(0, 1.6, -1); // 瞬間拉近到面前
+                        doll.position.set(0, 1, -1); // 瞬間拉近到面前
                         
                         // 0.3 秒後恢復原狀
                         setTimeout(() => {
@@ -271,7 +271,8 @@
             scareSnd.play();
             img.src = "./doll2.png"; img.style.display = "block"; alert(txt);
         } else {
-            successSnd.play(); img.src = "./成功圖片.png"; img.style.display = "block"; showText(txt, null);
+            successSnd.play(); img.src = "./成功圖片.png"; img.style.display = "block"; // 🔽 加入兩段文字，利用 <br> 換行，並稍微調大字體
+            showText(`<span style="font-size: 36px; color: #ffeb3b;">謝謝你幫我找到我的玩具！</span><br><br>${txt}`, null);
         }
         setTimeout(() => {
             const b = document.createElement('button'); b.innerHTML = "再試一次";
