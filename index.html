@@ -112,13 +112,21 @@
     loader.load('./scene.glb', (g) => { carriage = g.scene; carriage.visible = false; carriage.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; }); scene.add(carriage); }, undefined, () => alert("找不到 scene.glb"));
     loader.load('./櫃檯.glb', (g) => { counter = g.scene; counter.visible = false; counter.position.set(0, 0, -100); counter.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; }); scene.add(counter); }, undefined, () => alert("找不到 櫃檯.glb"));
 
-    // --- 修正娃娃座標與大小 ---
+// --- 修正娃娃座標與大小 ---
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
-    doll.scale.set(0.2, 0.2, 0.2); // 縮小為合理尺寸
-    // 置中於攝影機前方 5 公尺，並與人眼同高
-    doll.position.set(0, 1.6, -103); 
-    doll.visible = false;
+    
+    // 1. 調整比例：維持 2816:1536 的原圖真實長寬比 (1.833 : 1)
+    // 放大係數設定為 2，所以寬度是 1.833 * 2 = 3.66，高度是 2
+    doll.scale.set(3.66, 2, 1); 
+    
+    // 2. 調整位置：(X左右, Y上下, Z前後)
+    // X 設定為 1.5 (正中央偏右)
+    // Y 設定為 1.6 (與攝影機/人眼同高)
+    // Z 設定為 -4  (距離玩家前方 4 公尺)
+    doll.position.set(1.5, 1.6, -4); 
+    
+    doll.visible = true; // 強制先設為 true 測試，確認看得到後再改回 false 走遊戲躲貓貓邏輯
     scene.add(doll);
 
     // --- 修正助理座標與大小 ---
