@@ -85,7 +85,7 @@
 
     // --- B. 燈光優化 (恢復恐怖感) ---
     const flashlight = new THREE.SpotLight(0xffffff, 0); 
-    flashlight.angle = Math.PI / 6;  // 縮小光束角度，集中視線
+    flashlight.angle = Math.PI / 5;  // 縮小光束角度，集中視線
     flashlight.penumbra = 0.3;       // 邊緣柔化
     flashlight.distance = 100;       // 限制探照距離
     flashlight.decay = 1;            // 增加光線衰減
@@ -115,7 +115,7 @@
     // --- 修正娃娃座標與大小 ---
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
-    doll.scale.set(5, 5, 4); // 縮小為合理尺寸
+    doll.scale.set(0.2, 0.2, 0.2); // 縮小為合理尺寸
     // 置中於攝影機前方 5 公尺，並與人眼同高
     doll.position.set(0, 1.6, -103); 
     doll.visible = false;
