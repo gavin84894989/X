@@ -102,6 +102,7 @@
     const cry = new Audio('./cry.mp3'); cry.loop = true;
     const radio = new Audio('./radio.mp3');
     const successSnd = new Audio('./success.mp3');
+    const scareSnd = new Audio('./SCARE.mp3');
 
     let cockpit, carriage, counter, assistant, doll;
     let gameState = "INTRO";
@@ -189,12 +190,23 @@
                 raycaster.setFromCamera(mouse, camera);
                 const intersects = raycaster.intersectObject(doll);
                 
-                // 躲貓貓邏輯：沒照到時顯示，照到時隱藏 (滿3次不隱藏)
+                // 新機制：首次照到時觸發 Jumpscare (瞬間放大 + 嚇人音效)
                 if (intersects.length > 0) {
-                    if (shineCount < 3) doll.visible = false;
-                    else doll.visible = true;
-                } else {
-                    if (shineCount < 3) doll.visible = true;
+                    if (shineCount === 0) {
+                        shineCount = 1; // 標記已觸發過初次驚嚇
+                        scareSnd.currentTime = 0; // 確保音效從頭播放
+                        scareSnd.play();
+                        
+                        // 娃娃瞬間放大貼近螢幕
+                        doll.scale.set(7.32, 4, 1); // 放大兩倍
+                        doll.position.set(0, 1.6, -1); // 瞬間拉近到面前
+                        
+                        // 0.3 秒後恢復原狀
+                        setTimeout(() => {
+                            doll.scale.set(3.66, 2, 1);
+                            doll.position.set(1.5, 1.6, -4);
+                        }, 300);
+                    }
                 }
             }
         }
@@ -210,8 +222,9 @@
         if (gameState === "CARRIAGE") {
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.intersectObject(doll).length > 0) {
-                if (shineCount < 3) shineCount++;
-                else { cry.pause(); showSOP(); }
+                // 只要點到娃娃，就直接進入 SOP 選單
+                cry.pause(); 
+                showSOP(); 
             }
         } else if (gameState === "COUNTER") {
             raycaster.setFromCamera(mouse, camera);
@@ -254,6 +267,8 @@
     function endGame(type, txt) {
         bgm.pause(); const img = document.getElementById('full-screen-img');
         if (type === "SCARE") {
+            scareSnd.currentTime = 0;
+            scareSnd.play();
             img.src = "./doll2.png"; img.style.display = "block"; alert(txt);
         } else {
             successSnd.play(); img.src = "./成功圖片.png"; img.style.display = "block"; showText(txt, null);
