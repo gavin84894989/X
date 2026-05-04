@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>北捷遺失物任務 - 修正版</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: black; font-family: "Microsoft JhengHei", sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: black; font-family: "Microsoft JhengHei", sans-serif; touch-action: none; /* 禁用預設滑動，優化觸控體驗 */ }
         canvas { display: block; }
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: black; color: white; display: flex; flex-direction: column;
             align-items: center; justify-content: center; z-index: 2000;
-            padding: 20px; text-align: center; pointer-events: auto;
+            padding: 20px; text-align: center; pointer-events: auto; cursor: pointer;
         }
         #dialog-text {
             font-size: 28px; line-height: 1.6; max-width: 85%;
@@ -125,6 +125,7 @@
 
     const overlay = document.getElementById('overlay'), dialogText = document.getElementById('dialog-text'), invContainer = document.getElementById('inventory-container'), btnBagMain = document.getElementById('btn-bag-main'), toolsList = document.getElementById('tools-list');
 
+    // UI 點擊皆採用標準 click，手機與電腦皆通用
     overlay.addEventListener('click', () => {
         if (gameState === "INTRO") {
             gameState = "DREAMING"; bgm.play();
@@ -183,9 +184,9 @@
                         
                         setTimeout(() => {
                             doll.scale.set(3.66, 2, 1);
-                            // ❗修正點：強制將娃娃 X 軸重置為 0 (正中央)，確保手機螢幕看得到
+                            // 縮小後強制置中，確保手機視角可見
                             doll.position.set(0, 1.6, -4);
-                        }, 500); // 延長驚嚇畫面至 0.5 秒
+                        }, 500); 
                     }
                 }
             }
@@ -194,42 +195,38 @@
     }
     animate();
 
+    // 座標更新函數
     const updateMouse = (x, y) => { 
         mouse.x = (x / window.innerWidth) * 2 - 1; 
         mouse.y = -(y / window.innerHeight) * 2 + 1; 
     };
     
-    // 監聽滑鼠移動與觸控移動 (控制手電筒)
-    window.addEventListener('mousemove', (e) => updateMouse(e.clientX, e.clientY));
-    window.addEventListener('touchmove', (e) => updateMouse(e.touches[0].clientX, e.touches[0].clientY));
+    // 💡 修正 1：統一使用 pointermove 追蹤滑鼠與手指移動
+    window.addEventListener('pointermove', (e) => {
+        updateMouse(e.clientX, e.clientY);
+    });
 
-    // ❗修正點：獨立出點擊判定邏輯，讓電腦與手機共用
-    const handleInteraction = () => {
+    // 💡 修正 2：統一使用 pointerdown 處理 3D 物件的點擊 (過濾 UI)
+    window.addEventListener('pointerdown', (e) => {
+        // 【防呆機制】如果點擊到的不是 3D 畫布 (CANVAS)，則立刻中斷，避免干擾 HTML 按鈕
+        if (e.target.tagName !== 'CANVAS') return;
+
+        updateMouse(e.clientX, e.clientY);
+        
         if (gameState === "CARRIAGE") {
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.intersectObject(doll).length > 0) {
-                cry.pause(); 
-                showSOP(); 
+                // 必須已經被嚇過 (shineCount > 0) 點擊才會觸發選單
+                if (shineCount > 0) {
+                    cry.pause(); 
+                    showSOP(); 
+                }
             }
         } else if (gameState === "COUNTER") {
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.intersectObject(assistant).length > 0) {
                 endGame("SUCCESS", "完整遺失物撿拾流程，也完整旅客的笑容");
             }
-        }
-    };
-
-    // 電腦版點擊
-    window.addEventListener('click', (e) => {
-        updateMouse(e.clientX, e.clientY); // 確保座標最新
-        handleInteraction();
-    });
-
-    // ❗修正點：手機版專用觸控點擊，解決手機點擊判定失效的問題
-    window.addEventListener('touchstart', (e) => {
-        if (e.touches.length > 0) {
-            updateMouse(e.touches[0].clientX, e.touches[0].clientY); // 強制更新手指點擊座標
-            handleInteraction();
         }
     });
 
