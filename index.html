@@ -73,7 +73,6 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // 強制將攝影機抬高至 1.6 公尺 (人眼高度)
     camera.position.set(0, 1.6, 0);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -83,19 +82,17 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // --- B. 燈光優化 (恢復恐怖感) ---
     const flashlight = new THREE.SpotLight(0xffffff, 0); 
-    flashlight.angle = Math.PI / 5;  // 縮小光束角度，集中視線
-    flashlight.penumbra = 0.3;       // 邊緣柔化
-    flashlight.distance = 100;       // 限制探照距離
-    flashlight.decay = 1;            // 增加光線衰減
+    flashlight.angle = Math.PI / 5;
+    flashlight.penumbra = 0.3;
+    flashlight.distance = 100;
+    flashlight.decay = 1;
     scene.add(flashlight);
     scene.add(flashlight.target);
 
-    // 泛光與環境光調暗
     const fillLight = new THREE.PointLight(0xffffff, 0, 100);
     scene.add(fillLight);
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.02); // 調整為極弱光 0.02
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.02);
     scene.add(ambientLight);
 
     const bgm = new Audio('./bgm.mp3'); bgm.loop = true;
@@ -108,38 +105,24 @@
     let gameState = "INTRO";
     let shineCount = 0;
 
-    // 載入模型
     loader.load('./駕駛室.glb', (g) => { cockpit = g.scene; cockpit.visible = false; cockpit.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; }); scene.add(cockpit); }, undefined, () => alert("找不到 駕駛室.glb"));
     loader.load('./scene.glb', (g) => { carriage = g.scene; carriage.visible = false; carriage.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; }); scene.add(carriage); }, undefined, () => alert("找不到 scene.glb"));
     loader.load('./櫃檯.glb', (g) => { counter = g.scene; counter.visible = false; counter.position.set(0, 0, -100); counter.traverse(n => { if(n.isMesh) n.material.side = THREE.DoubleSide; }); scene.add(counter); }, undefined, () => alert("找不到 櫃檯.glb"));
 
-// --- 修正娃娃座標與大小 ---
     const dollTex = new THREE.TextureLoader().load('./doll.png');
     doll = new THREE.Sprite(new THREE.SpriteMaterial({ map: dollTex, transparent: true }));
-    
-    // 1. 調整比例：維持 2816:1536 的原圖真實長寬比 (1.833 : 1)
-    // 放大係數設定為 2，所以寬度是 1.833 * 2 = 3.66，高度是 2
     doll.scale.set(3.66, 2, 1); 
-    
-    // 2. 調整位置：(X左右, Y上下, Z前後)
-    // X 設定為 1.5 (正中央偏右)
-    // Y 設定為 1.6 (與攝影機/人眼同高)
-    // Z 設定為 -4  (距離玩家前方 4 公尺)
     doll.position.set(1.5, 1.6, -4); 
-    
-    doll.visible = false; // 強制先設為 true 測試，確認看得到後再改回 false 走遊戲躲貓貓邏輯
+    doll.visible = false; 
     scene.add(doll);
 
-    // --- 修正助理座標與大小 ---
     const asstTex = new THREE.TextureLoader().load('./助理.png');
     assistant = new THREE.Sprite(new THREE.SpriteMaterial({ map: asstTex }));
     assistant.scale.set(1.5, 3, 1); 
-    // 置中於攝影機前方 3 公尺 (櫃檯基準 Z: -100，所以放在 -103)，與人眼同高
     assistant.position.set(0, 1.6, -103); 
     assistant.visible = false;
     scene.add(assistant);
 
-    // 流程控制
     const overlay = document.getElementById('overlay'), dialogText = document.getElementById('dialog-text'), invContainer = document.getElementById('inventory-container'), btnBagMain = document.getElementById('btn-bag-main'), toolsList = document.getElementById('tools-list');
 
     overlay.addEventListener('click', () => {
@@ -159,8 +142,8 @@
     });
 
     document.getElementById('btn-flashlight').addEventListener('click', () => {
-        flashlight.intensity = 30; // 降低主光強度，維持恐怖感
-        fillLight.intensity = 1.5; // 泛光僅作微弱補光
+        flashlight.intensity = 30;
+        fillLight.intensity = 1.5;
         invContainer.style.display = "none";
         
         showText("開啟手電筒了。試著晃動螢幕觀察四周...", 5000, () => {
@@ -175,11 +158,10 @@
         cockpit.visible = false; carriage.visible = true;
         camera.position.set(0, 1.6, 0); 
         gameState = "CARRIAGE";
-        doll.visible = true; // 進入車廂立刻顯示娃娃
+        doll.visible = true; 
         cry.play();
     });
 
-    // 互動核心
     function animate() {
         requestAnimationFrame(animate);
         if (gameState !== "INTRO") {
@@ -190,22 +172,20 @@
                 raycaster.setFromCamera(mouse, camera);
                 const intersects = raycaster.intersectObject(doll);
                 
-                // 新機制：首次照到時觸發 Jumpscare (瞬間放大 + 嚇人音效)
                 if (intersects.length > 0) {
                     if (shineCount === 0) {
-                        shineCount = 1; // 標記已觸發過初次驚嚇
-                        scareSnd.currentTime = 0; // 確保音效從頭播放
+                        shineCount = 1; 
+                        scareSnd.currentTime = 0; 
                         scareSnd.play();
                         
-                        // 娃娃瞬間放大貼近螢幕
-                        doll.scale.set(7.32, 4, 1); // 放大兩倍
-                        doll.position.set(0, 1, -1); // 瞬間拉近到面前
+                        doll.scale.set(7.32, 4, 1); 
+                        doll.position.set(0, 1, -1); 
                         
-                        // 0.3 秒後恢復原狀
                         setTimeout(() => {
                             doll.scale.set(3.66, 2, 1);
-                            doll.position.set(1.5, 1.6, -4);
-                        }, 300);
+                            // ❗修正點：強制將娃娃 X 軸重置為 0 (正中央)，確保手機螢幕看得到
+                            doll.position.set(0, 1.6, -4);
+                        }, 500); // 延長驚嚇畫面至 0.5 秒
                     }
                 }
             }
@@ -214,15 +194,20 @@
     }
     animate();
 
-    const updateMouse = (x, y) => { mouse.x = (x / window.innerWidth) * 2 - 1; mouse.y = -(y / window.innerHeight) * 2 + 1; };
+    const updateMouse = (x, y) => { 
+        mouse.x = (x / window.innerWidth) * 2 - 1; 
+        mouse.y = -(y / window.innerHeight) * 2 + 1; 
+    };
+    
+    // 監聽滑鼠移動與觸控移動 (控制手電筒)
     window.addEventListener('mousemove', (e) => updateMouse(e.clientX, e.clientY));
     window.addEventListener('touchmove', (e) => updateMouse(e.touches[0].clientX, e.touches[0].clientY));
 
-    window.addEventListener('click', (e) => {
+    // ❗修正點：獨立出點擊判定邏輯，讓電腦與手機共用
+    const handleInteraction = () => {
         if (gameState === "CARRIAGE") {
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.intersectObject(doll).length > 0) {
-                // 只要點到娃娃，就直接進入 SOP 選單
                 cry.pause(); 
                 showSOP(); 
             }
@@ -231,6 +216,20 @@
             if (raycaster.intersectObject(assistant).length > 0) {
                 endGame("SUCCESS", "完整遺失物撿拾流程，也完整旅客的笑容");
             }
+        }
+    };
+
+    // 電腦版點擊
+    window.addEventListener('click', (e) => {
+        updateMouse(e.clientX, e.clientY); // 確保座標最新
+        handleInteraction();
+    });
+
+    // ❗修正點：手機版專用觸控點擊，解決手機點擊判定失效的問題
+    window.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) {
+            updateMouse(e.touches[0].clientX, e.touches[0].clientY); // 強制更新手指點擊座標
+            handleInteraction();
         }
     });
 
@@ -271,7 +270,7 @@
             scareSnd.play();
             img.src = "./doll2.png"; img.style.display = "block"; alert(txt);
         } else {
-            successSnd.play(); img.src = "./成功圖片.png"; img.style.display = "block"; // 🔽 加入兩段文字，利用 <br> 換行，並稍微調大字體
+            successSnd.play(); img.src = "./成功圖片.png"; img.style.display = "block"; 
             showText(`<span style="font-size: 36px; color: #ffeb3b;">謝謝你幫我找到我的玩具！</span><br><br>${txt}`, null);
         }
         setTimeout(() => {
